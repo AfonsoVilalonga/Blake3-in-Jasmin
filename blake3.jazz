@@ -1,0 +1,505 @@
+/*
+    Completa 
+*/
+inline fn parent_output(reg u64 self, stack u32[8] current_cv, reg u8 parent_nodes) -> stack u32[8], 
+                                stack u32[16], reg u64, reg u32, reg u32{
+    stack u32[8] input_chaining_value;
+    stack u32[16] block_words;
+    reg u64 counter;
+    reg u32 block_len, flags, aux;
+
+
+
+    inline int i, j;
+    for i = 0 to 8{
+        input_chaining_value[i] = (u32)[self + i * 4 + 112];
+    }
+
+    reg u64 aux;
+    aux = (64u) parent_nodes;
+    aux = aux * 32;    
+    for i = 0 to 8{
+        block_words[i] = (u32)[self + 8 * 4 + 112 + aux + i * 4];
+    }
+
+    j = 0;
+    for i = 8 to 16{
+        block_words[i] = current_cv[j];
+        j = j + 1;
+    }
+
+    counter = 0;
+    block_len = 64;
+    aux = 1;
+    aux = aux << 2;
+    flags = (u32)[self + 1880 - 4];
+    flags = aux | flags;
+
+    return input_chaining_value, block_words, counter, block_len, flags; 
+}
+
+
+/*
+    Completa
+*/
+inline fn permute(stack u32[16] m) -> stack u32[16]{
+    reg u64 aux;
+    stack u64[16] MSG_PERMUTATION;
+    MSG_PERMUTATION[0] = 2;
+    MSG_PERMUTATION[1] = 6;
+    MSG_PERMUTATION[2] = 3;
+    MSG_PERMUTATION[3] = 10;
+    MSG_PERMUTATION[4] = 7;
+    MSG_PERMUTATION[5] = 0;
+    MSG_PERMUTATION[6] = 4;
+    MSG_PERMUTATION[7] = 13;
+    MSG_PERMUTATION[8] = 1;
+    MSG_PERMUTATION[9] = 11;
+    MSG_PERMUTATION[10] = 12;
+    MSG_PERMUTATION[11] = 5;
+    MSG_PERMUTATION[12] = 9;
+    MSG_PERMUTATION[13] = 14;
+    MSG_PERMUTATION[14] = 15;
+    MSG_PERMUTATION[15] = 8;
+
+    stack u32[16] permuted;
+    inline int i;
+    for i = 0 to 16{
+        aux = MSG_PERMUTATION[i];
+        permuted[i] = m[(int) aux];
+    }
+
+    for i = 0 to 16{
+        m[i] = permuted[i];
+    }
+
+    return m; 
+}
+
+
+/*
+    Completa
+*/
+inline fn rotate_right(reg u32 x, inline int n) -> reg u32{
+    reg u32 aux, aux2, aux3, res;
+    
+    aux = x;
+    aux = aux >> n;
+
+    aux3 = 32;
+    aux3 = aux3 - n;
+    aux2 = x;
+    aux2 = aux2 << aux3;
+
+    res = aux;
+    res = res | aux2;
+
+    return res; 
+}
+
+
+/*
+   Completa
+*/
+inline fn g(stack u32[16] state, reg u64 a b c d, reg u32 mx my) -> stack u32[16]{
+    reg u32 aux; 
+
+    aux = state[(int) a];
+    aux = aux + state[(int) b]; 
+    aux = aux + mx;
+    state[(int) a] = aux;
+    
+    aux = state[(int) a];
+    aux = aux ^ state[(int) d];
+    aux = rotate_right(aux, 16);
+    state[(int) d] = aux;
+
+    aux = state[(int) c];
+    aux = aux + state[(int) d];
+    state[(int) c] = aux;
+        
+    aux = state[(int) b];
+    aux = aux ^ state[(int) c];
+    aux = rotate_right(aux, 12);
+    state[(int) b] = aux;
+
+    aux = state[(int) a];
+    aux = aux + state[(int) b];
+    aux = aux + my;
+    state[(int) a] = aux;
+    
+    aux = state[(int) d];
+    aux = aux ^ state[(int) a];
+    aux = rotate_right(aux, 8);
+    state[(int) d] = aux;
+
+    aux = state[(int) c];
+    aux = aux + state[(int) d];
+    state[(int) c] = aux; 
+
+    aux = state[(int) b];
+    aux = aux ^ state[(int) c];
+    aux = rotate_right(aux, 7); 
+    state[(int) b] = aux;
+    
+    return state;
+}
+
+
+/*
+   Completa
+*/
+inline fn round_function(stack u32[16] state, stack u32[16] m) -> stack u32[16]{
+    reg u64 a, b, c, d;
+    reg u32 aux, aux2;
+    stack u32[16] state_aux;
+    
+
+    aux = m[0];
+    aux2 = m[1];
+    a = 0;
+    b = 4; 
+    c = 8;
+    d = 12;
+    state_aux = g(state, a, b, c, d, aux, aux2);
+    
+    aux = m[2];
+    aux2 = m[3];
+    a = 1;
+    b = 5; 
+    c = 9;
+    d = 13;
+    state_aux = g(state_aux, a, b, c, d, aux, aux2);
+
+    aux = m[4];
+    aux2 = m[5];
+    a = 2;
+    b = 6; 
+    c = 10;
+    d = 14;
+    state_aux = g(state_aux, a, b, c, d, aux, aux2);
+
+    aux = m[6];
+    aux2 = m[7];
+    a = 3;
+    b = 7; 
+    c = 11;
+    d = 15;
+    state_aux = g(state_aux, a, b, c, d, aux, aux2);
+
+    aux = m[8];
+    aux2 = m[9];
+    a = 0;
+    b = 5; 
+    c = 10;
+    d = 15;
+    state_aux = g(state_aux, a, b, c, d, aux, aux2);
+
+    aux = m[10];
+    aux2 = m[11];
+    a = 1;
+    b = 6; 
+    c = 11;
+    d = 12;
+    state_aux = g(state_aux, a, b, c, d, aux, aux2);
+
+    aux = m[12];
+    aux2 = m[13];
+    a = 2;
+    b = 7; 
+    c = 8;
+    d = 13;
+    state_aux = g(state_aux, a, b, c, d, aux, aux2);
+
+    aux = m[14];
+    aux2 = m[15];
+    a = 3;
+    b = 4; 
+    c = 9;
+    d = 14;
+    state_aux = g(state_aux, a, b, c, d, aux, aux2);
+
+    return state_aux;
+}
+
+
+/*
+    Completa
+*/
+inline fn compress(stack u32[8] chaining_value, stack u32[16] block_words, reg u64 counter,
+                    reg u32 block_len, reg u32 flags) -> stack u32[16] {
+    stack u32[16] state;
+    stack u32[16] block;
+    stack u32[16] out;
+
+    reg u64 aux; 
+    aux = counter;
+    aux = aux >> 32;
+
+    state[0] = chaining_value[0];
+    state[1] = chaining_value[1];
+    state[2] = chaining_value[2];
+    state[3] = chaining_value[3];
+    state[4] = chaining_value[4];
+    state[5] = chaining_value[5];
+    state[6] = chaining_value[6];
+    state[7] = chaining_value[7];
+    state[8] = 0x6A09E667;
+    state[9] = 0xBB67AE85;
+    state[10] = 0x3C6EF372;
+    state[11] = 0xA54FF53A;
+    state[12] = (32u) counter;
+    state[13] = (32u) (aux);
+    state[14] = block_len;
+    state[15] = flags;
+
+    inline int i;
+    for i = 0 to 16{
+        block[i] = block_words[i];
+    }     
+
+    state = round_function(state, block);
+    block = permute(block);
+    state = round_function(state, block);
+    block = permute(block);
+    state = round_function(state, block);
+    block = permute(block);
+    state = round_function(state, block);
+    block = permute(block);
+    state = round_function(state, block);
+    block = permute(block);
+    state = round_function(state, block);
+    block = permute(block);
+    state = round_function(state, block);
+
+    reg u32 aux2;
+    for i = 0 to 8{
+        aux2 = state[i + 8];
+        state[i] = state[i] ^ aux2;
+        
+        aux2 = chaining_value[i];
+        state[i + 8] = state[i + 8] ^ aux2;
+    }
+    
+    for i = 0 to 16{
+        out[i] = state[i];
+    }
+   
+    return out;
+}
+
+
+/*
+    Completa
+*/
+inline fn output_chaining_value(reg u64 counter, reg u32 block_len_out flags, stack u32[16] block_words, 
+                                    stack u32[8] input_chaining_value) -> stack u32[8]{
+
+    stack u32[16] out16;
+    stack u32[8] out;
+    out16 = compress(input_chaining_value, block_words, counter, block_len_out, flags);
+
+    inline int i;
+    for i = 0 to 8{
+        out[i] = out16[i];
+    }
+
+    return out;
+}    
+
+
+/*
+    Completa
+*/
+inline fn words_from_little_endian_bytes(reg u64 self) -> stack u32[16]{
+    stack u32[16] res;
+
+    reg u32 aux;
+
+    inline int i;
+    inline int j;
+    j = 0;
+
+    for i = 0 to 16{
+        aux = (32u) (u8)[self + 40 + j];
+        res[i] = aux;
+        j += 1;
+        
+        aux = (32u) (u8)[self + 40 + j];
+        aux = aux << 8;
+        res[i] += aux;
+        j += 1;
+        
+        aux = (32u) (u8)[self + 40 + j];
+        aux = aux << 16;
+        res[i] += aux;
+        j += 1;
+        
+        aux = (32u) (u8)[self + 40 + j];
+        aux = aux << 24;
+        res[i] += aux;
+        j += 1;
+    }
+
+    return res;
+}
+
+
+/*
+    Completa
+*/
+inline fn chunk_state_start_flag(reg u64 self) -> reg u32{
+    reg u32 res;
+
+    if((u8) [self + 105] == 0){
+        res = 1;
+        res = res << 0;
+    }else{
+        res = 0;
+    }
+    
+    return res;
+}
+
+
+/* 
+    Completa
+*/
+inline fn chunk_state_output(reg u64 self) -> reg u64, reg u32, reg u32, stack u32[16], stack u32[8]{
+    reg u64 counter;
+    reg u32 block_len, flags, aux;
+    stack u32[16] block_words;
+    stack u32[8] input_chaining_value;
+
+    inline int i;
+    for i = 0 to 8{
+        input_chaining_value[i] = (u32)[self + 4 * i]; 
+    }
+    
+    block_words = words_from_little_endian_bytes(self);
+
+    counter = (u64)[self + 4 * 8];
+    
+    block_len = (32u) (u8)[self + 5 * 8 + 64];
+    
+    flags = (u32)[self + 108];
+    aux = chunk_state_start_flag(self);
+    flags = flags | aux;
+    aux = 1 << 1;
+    flags = flags | aux;
+
+    return counter, block_len, flags, block_words, input_chaining_value;
+}
+
+
+/*
+    Completa
+*/
+inline fn chunk_state_len(reg u64 blocks_compressed block_len) -> reg u64{
+    reg u64 res;
+
+    res = 64;
+    res *= blocks_compressed;
+    res *= block_len;
+
+    return res;
+}
+
+
+/*
+    Completa VERIFICAR DE NOVO
+*/
+inline fn output_root_bytes(reg u64 counter, reg u32 block_len flags, stack u32[16] block_words, stack u32[8] input_chaining_value, 
+                                reg u64 out, reg u64 out_size){
+    reg u32 aux, aux2, a, b;
+    stack u32[16] words;
+    reg u64 output_block_counter;
+    output_block_counter = 0;
+
+    aux2 = 1 << 3;
+    
+    inline int word;
+    inline int byte;
+    reg u64 index;
+    index = 0;
+
+    while(out_size > 0){
+        aux = flags;
+        aux = aux | aux2;
+        words = compress(input_chaining_value, block_words, output_block_counter, block_len, aux);
+
+        
+        for word = 0 to 16{
+            for byte = 0 to 4{
+                if (out_size != 0) {
+                    a = words[word];
+                    b = 8;
+                    b = b * byte;
+                    a = a >> b;
+
+                    (u8)[out + (int) index] = a;
+                    out_size = out_size - 1;
+                    index = index + 1;
+                }
+            }
+        }
+    
+    
+        output_block_counter = output_block_counter + 1;
+    }
+}
+
+
+/* 
+    Nao completa
+*/
+export fn blake3_hasher_update_aux(reg u64 self, reg u64 input, reg u64 input_len){
+    reg u64 res;
+    reg u64 blocks_compressed, block_len;
+
+    reg u64 counter;
+    reg u32 block_len_out, flags;
+    stack u32[16] block_words;
+    stack u32[8] input_chaining_value;  
+    stack u32[8] chunk_cv;
+
+
+    blocks_compressed = (64u) (u8)[self + 105];
+    block_len = (64u) (u8)[self + 104];
+    
+    res = chunk_state_len(blocks_compressed, block_len);
+
+    while(input_len > 0){
+        if(res == 1024){
+            counter, block_len_out, flags, block_words, input_chaining_value = chunk_state_output(self);
+            
+        }
+    }
+
+}
+
+
+/*
+    Completa
+*/
+export fn blake3_hasher_finalize(reg u64 self, reg u64 out, reg u64 size){
+    reg u64 counter;
+    reg u32 block_len, flags;
+    reg u8 parent_nodes_remaining;
+    
+    stack u32[16] block_words;
+    stack u32[8] input_chaining_value;
+    stack u32[8] current_cv;
+
+    counter, block_len, flags, block_words, input_chaining_value = chunk_state_output(self);
+    parent_nodes_remaining = (u8)[self + 108 + 4 + (8*4) + (8*54)*4];
+
+    while(parent_nodes_remaining > 0){
+        parent_nodes_remaining = parent_nodes_remaining - 1;
+        current_cv = output_chaining_value(counter, block_len, flags, block_words, input_chaining_value);
+        
+        input_chaining_value, block_words, counter, block_len, flags = parent_output(self, current_cv, parent_nodes_remaining);
+    }
+
+    output_root_bytes(counter, block_len, flags, block_words, input_chaining_value, out, size);   
+}
