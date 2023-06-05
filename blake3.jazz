@@ -435,7 +435,7 @@ inline fn output_root_bytes(reg u64 counter, reg u32 block_len flags, stack u32[
     reg u64 index;
     index = 0;
 
-    while(out_size > 0){
+    while(out_size >s 0){
         aux = flags;
         aux = aux | aux2;
         words = compress(input_chaining_value, block_words, output_block_counter, block_len, aux);
@@ -444,21 +444,20 @@ inline fn output_root_bytes(reg u64 counter, reg u32 block_len flags, stack u32[
         for word = 0 to 16{
             for byte = 0 to 4{
                 
-                if (out_size > 0) {
+                if (out_size >s 0) {
                     a = words[word];
                     b = 8;
                     b = b * byte;
                     a = a >> b;
 
                     (u8)[out + (int) index] = a;
-                    out_size = out_size - 1;
+                    
                     index = index + 1;
                 }
-
+                out_size = out_size - 1;
             }
         }
-    
-    
+        
         output_block_counter = output_block_counter + 1;
     }
 }
