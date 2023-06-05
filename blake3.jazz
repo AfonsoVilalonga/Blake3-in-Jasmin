@@ -1,4 +1,12 @@
 /*
+    Nao Completa 
+*/
+inline fn hasher_add_chunk_cv(reg u64 self, stack u32[8] new_cv, reg u64 total_chunks){
+
+}
+
+
+/*
     Completa 
 */
 inline fn parent_output(reg u64 self, stack u32[8] current_cv, reg u8 parent_nodes) -> stack u32[8], 
@@ -15,11 +23,11 @@ inline fn parent_output(reg u64 self, stack u32[8] current_cv, reg u8 parent_nod
         input_chaining_value[i] = (u32)[self + i * 4 + 112];
     }
 
-    reg u64 aux;
-    aux = (64u) parent_nodes;
-    aux = aux * 32;    
+    reg u64 aux2;
+    aux2 = (64u) parent_nodes;
+    aux2 = aux2 * 32;    
     for i = 0 to 8{
-        block_words[i] = (u32)[self + 8 * 4 + 112 + aux + i * 4];
+        block_words[i] = (u32)[self + 8 * 4 + 112 + aux2 + i * 4];
     }
 
     j = 0;
@@ -385,7 +393,8 @@ inline fn chunk_state_output(reg u64 self) -> reg u64, reg u32, reg u32, stack u
     flags = (u32)[self + 108];
     aux = chunk_state_start_flag(self);
     flags = flags | aux;
-    aux = 1 << 1;
+    aux = 1;
+    aux = aux << 1;
     flags = flags | aux;
 
     return counter, block_len, flags, block_words, input_chaining_value;
@@ -395,8 +404,11 @@ inline fn chunk_state_output(reg u64 self) -> reg u64, reg u32, reg u32, stack u
 /*
     Completa
 */
-inline fn chunk_state_len(reg u64 blocks_compressed block_len) -> reg u64{
-    reg u64 res;
+inline fn chunk_state_len(reg u64 self) -> reg u64{
+    reg u64 res, blocks_compressed, block_len;
+
+    blocks_compressed = (64u) (u8)[self + 105];
+    block_len = (64u) (u8)[self + 104];
 
     res = 64;
     res *= blocks_compressed;
@@ -407,7 +419,7 @@ inline fn chunk_state_len(reg u64 blocks_compressed block_len) -> reg u64{
 
 
 /*
-    Completa VERIFICAR DE NOVO
+    Completa
 */
 inline fn output_root_bytes(reg u64 counter, reg u32 block_len flags, stack u32[16] block_words, stack u32[8] input_chaining_value, 
                                 reg u64 out, reg u64 out_size){
@@ -431,7 +443,8 @@ inline fn output_root_bytes(reg u64 counter, reg u32 block_len flags, stack u32[
         
         for word = 0 to 16{
             for byte = 0 to 4{
-                if (out_size != 0) {
+                
+                if (out_size > 0) {
                     a = words[word];
                     b = 8;
                     b = b * byte;
@@ -441,6 +454,7 @@ inline fn output_root_bytes(reg u64 counter, reg u32 block_len flags, stack u32[
                     out_size = out_size - 1;
                     index = index + 1;
                 }
+
             }
         }
     
@@ -454,24 +468,25 @@ inline fn output_root_bytes(reg u64 counter, reg u32 block_len flags, stack u32[
     Nao completa
 */
 export fn blake3_hasher_update_aux(reg u64 self, reg u64 input, reg u64 input_len){
-    reg u64 res;
-    reg u64 blocks_compressed, block_len;
-
+    reg u64 res, total_chunks;
+    
     reg u64 counter;
-    reg u32 block_len_out, flags;
+    reg u32 block_len, flags;
     stack u32[16] block_words;
     stack u32[8] input_chaining_value;  
     stack u32[8] chunk_cv;
-
-
-    blocks_compressed = (64u) (u8)[self + 105];
-    block_len = (64u) (u8)[self + 104];
     
-    res = chunk_state_len(blocks_compressed, block_len);
+    res = chunk_state_len(self);
 
     while(input_len > 0){
         if(res == 1024){
-            counter, block_len_out, flags, block_words, input_chaining_value = chunk_state_output(self);
+            counter, block_len, flags, block_words, input_chaining_value = chunk_state_output(self);
+            chunk_cv = output_chaining_value(counter, block_len, flags, block_words, input_chaining_value);
+
+            total_chunks = [self + 4 * 8];
+            total_chunks = total_chunks + 1;
+
+            hasher_add_chunk_cv(self, chunk_cv, total_chunks);
             
         }
     }
