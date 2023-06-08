@@ -403,23 +403,6 @@ inline fn chunk_state_output(reg u64 self) -> reg u64, reg u32, reg u32, stack u
 /*
     COMPLETE
 */
-inline fn chunk_state_len(reg u64 self) -> reg u64{
-    reg u64 res, blocks_compressed, block_len;
-
-    blocks_compressed = (64u) (u8)[self + 105];
-    block_len = (64u) (u8)[self + 104];
-
-    res = 64;
-    res *= blocks_compressed;
-    res *= block_len;
-
-    return res;
-}
-
-
-/*
-    COMPLETE
-*/
 inline fn output_root_bytes(reg u64 counter, reg u32 block_len flags, stack u32[16] block_words, stack u32[8] input_chaining_value, 
                                 reg u64 out, reg u64 out_size){
     reg u32 aux, aux2, a, b;
@@ -505,26 +488,43 @@ export fn blake3_hasher_finalize(reg u64 self, reg u64 out, reg u64 size){
 
 
 /*
-    Completa VERIFICAR
+    COMPLETE
+*/
+inline fn chunk_state_len(reg u64 self) -> reg u64{
+    reg u64 res, blocks_compressed, block_len;
+
+    blocks_compressed = (64u) (u8)[self + 105];
+    block_len = (64u) (u8)[self + 104];
+
+    res = 64;
+    res *= blocks_compressed;
+    res += block_len;
+
+    return res;
+}
+
+
+/*
+    COMPLETE
 */
 inline fn hasher_push_stack(reg u64 self, stack u32[8] cv){
     inline int i;
     
     reg u64 index;
     
-    index = (64u) (u8)[self + 112 + 8*4 + (8 * 54) * 4];
+    index = (64u) (u8)[self + 112 + 8 * 4 + (8 * 54) * 4];
     index = index * 32;
 
     for i = 0 to 8{
-        (u32)[self + index + 4 * i] = cv[i];
+        (u32)[self + 112 + 8 * 4 + index + 4 * i] = cv[i];
     }
 
-    (u8)[self + 112 + 8*4 + (8 * 54) * 4] = (u8)[self + 112 + 8*4 + (8 * 54) * 4] + 1;
+    (u8)[self + 112 + 8*4 + (8 * 54) * 4] += 1;
 }
 
 
 /*
-    Completa VERIFICAR 
+    COMPLETE 
 */
 inline fn parent_cv(reg u64 self, stack u32[8] right_child_cv) -> stack u32[8]{
     stack u32[8] out, input_chaining_value;
@@ -545,12 +545,12 @@ inline fn parent_cv(reg u64 self, stack u32[8] right_child_cv) -> stack u32[8]{
 
 
 /*
-    Completa VERIFICAR 
+    COMPLETE  
 */
 inline fn hasher_add_chunk_cv(reg u64 self, stack u32[8] new_cv, reg u64 total_chunks){
     stack u32[8] out;
     reg u64 aux, condition;
-
+    
     out = new_cv;
 
     condition = total_chunks;
@@ -558,7 +558,7 @@ inline fn hasher_add_chunk_cv(reg u64 self, stack u32[8] new_cv, reg u64 total_c
     aux = aux & 1;
     
     while(aux == 0){
-        (u8)[self + 1872] = (u8)[self + 1872] - 1;
+        (u8)[self + 1872] -= 1;
 
         out = parent_cv(self, out);    
 
@@ -567,12 +567,13 @@ inline fn hasher_add_chunk_cv(reg u64 self, stack u32[8] new_cv, reg u64 total_c
         aux = condition; 
         aux = aux & 1;
     }
+
     hasher_push_stack(self, out);
 }
 
 
 /*
-    COMPLETE VERIFICAR 
+    COMPLETE 
 */
 inline fn chunk_state_init_update(reg u64 self, reg u64 chunck_counter){
     inline int i;
@@ -588,153 +589,134 @@ inline fn chunk_state_init_update(reg u64 self, reg u64 chunck_counter){
     
     (u8)[self + 8 * 5 + 64] = 0;
     (u8)[self + 8 * 5 + 65] = 0;
-    (u32)[self + 1880 - 4] = (u32)[self + 1880 - 4];
+    (u32)[self + 112 - 4] = (u32)[self + 1880 - 4];
 }
 
 
 /* 
-    COMPLETE VERIFICAR
+    COMPLETE 
 */
-inline fn chunk_state_update(reg u64 self, reg u64 input, reg u64 input_len, reg u8 input_u8){
-    stack u32[16] block_words, out16;
+inline fn chunk_state_update(reg u64 self, reg u64 input, reg u64 input_len, stack u64 pt){
+    stack u32[16] out16;
+    stack u32[16] block_words;
     stack u32[8] chaining_value;
-    
-    stack u8 input_u8_2;
-    input_u8_2 = 0;
-    
-    reg u64 chunk_counter;
-    reg u64 want;
-    reg u64 take;
-    reg u64 input_len_aux;
-    reg u64 aux_64, aux_64_2, aux_64_3; 
-    
-    reg u32 flags;
-    reg u32 BLAKE3_BLOCK_LEN;
-    reg u32 aux_32; 
 
-    reg u8 aux_8;
-     
-
-    BLAKE3_BLOCK_LEN = 64;    
+    reg u8 block_len;
+    reg u64 chunck_counter, take, want, input_u8, counter, aux, aux2, input_len_aux;
+    
+    input_u8 = pt;
     input_len_aux = input_len;
-    
 
-    inline int i;
+    reg u32 flags, aux32;
+    
+    reg u32 BLAKE3_BLOCK_LEN;
+    BLAKE3_BLOCK_LEN = 64;
 
     while(input_len_aux >s 0){
-        
-        if((u32)[self + 8 * 5 + 64] == 64){
+        block_len = (u8)[self + 8 * 5 + 64];
+
+        if(block_len == BLAKE3_BLOCK_LEN){
             block_words = words_from_little_endian_bytes(self);
-        
-          
+
+            inline int i;
             for i = 0 to 8{
-                chaining_value[i] = (u32)[self + 4 * i];
+                chaining_value[i] = (u32)[self + i * 4];
             }
 
-            chunk_counter = (u64)[self + 4 * 8];
-            aux_32 = chunk_state_start_flag(self);
-            
+            chunck_counter = (u64)[self + 8 * 4];
+            aux32 = chunk_state_start_flag(self);
             flags = (u32)[self + 108];
-            flags = flags | aux_32;
-
-            aux_64 = (u64)[self + 4 * i];
-            out16 = compress(chaining_value, block_words, aux_64, BLAKE3_BLOCK_LEN, flags);
+            flags = flags | aux32;
+            out16 = compress(chaining_value, block_words, chunck_counter, BLAKE3_BLOCK_LEN, flags);
 
             for i = 0 to 8{
-                (u32)[self + 4 * i] = out16[i]; 
+                (u32)[self + i * 4] = out16[i]; 
             }
 
-            aux_8 = (u8)[self + 5 * i + 64 + 1];
-            aux_8 = aux_8 + 1;
-            (u8)[self + 5 * 8 + 64 + 1] = aux_8;
+            (u8)[self + 8 * 5 + 64 + 1] += 1;
 
             for i = 0 to 64{
-                (u8)[self + 5 * 8 + i] = 0;
+                (u8)[self + 8 * 5 + i] = 0;
             }
-            
-            (u8)[self + 5 * 8 + 64] = 0;
-        }
 
-      
-        aux_64 = (64u) (u8)[self + 5 * 8 + 64];
-        want = 64;
-        want = want - aux_64;
+            (u8)[self + 8 * 5 + 64] = 0;
+        }   
+
+        want = (64u) BLAKE3_BLOCK_LEN;
+        aux = (64u)(u8)[self + 5 * 8 + 64];
+        want = want - aux;
         take = want;
 
-        if(want >s input_len_aux){
+        if(input_len_aux <s want){
             take = input_len_aux;
         }
 
-
-        aux_8 = input_u8_2;
-        aux_8 = aux_8 + input_u8;
-
-        aux_64 = 0;
-        aux_64_3 = (64u) (u8)[self + 5 * 8 + 64];
         
-        while(take >s aux_64){
-            aux_64_2 = (64u) aux_8;
-            aux_64_2 = aux_64_2 + aux_64;
+        counter = 0;
+        block_len = (u8)[self + 8*5 + 64];
 
-            aux_64_3 = aux_64_3 + aux_64;
-            
-            (u8)[self + 5 * 8 + aux_64_3] = (u8)[input + aux_64_2];
-            aux_64 = aux_64 + 1;
+        aux = (64u)block_len;
+        aux2 = (64u)input_u8;
+
+        while(counter <s take){
+            (u8)[self + 5 * 8 + aux] = (u8)[input + aux2];
+            counter = counter + 1;
+
+            aux = aux + 1;
+            aux2 = aux2 + 1;
         }
 
-        (u8)[self + 5 * 8 + 64] = (u8)[self + 5 * 8 + 64] + (8u) take;
-        input_u8_2 = input_u8_2 + 1;
-        input_len_aux = input_len_aux - take;
+        (u8)[self + 5 * 8 + 64] += (8u) take;
+        input_u8 += take;
+        input_len_aux -= take;
     }
 }
 
 
 /* 
-    COMPLETE VERIFICAR
+    COMPLETE
 */
-export fn blake3_hasher_update_aux(reg u64 self, reg u64 input, reg u64 input_len){
-    reg u64 res, total_chunks;
-    
-    reg u64 counter;
-    reg u32 block_len, flags;
+export fn blake3_hasher_update(reg u64 self, reg u64 input, reg u64 input_len){
     stack u32[16] block_words;
-    stack u32[8] input_chaining_value;  
-    stack u32[8] chunk_cv;
-
-    reg u64 want, take;
-    reg u8 input_u8;
-    input_u8 = 0;
+    stack u32[8] input_chaining_value;
+    stack u32[8] chunck_cv;
     
+    reg u64 counter, total_chunks, take, want, aux64;
+    reg u32 block_len, flags;
+    
+    stack u64 input_u8;
+    input_u8 = 0;
+
+    stack u64 BLAKE3_CHUNK_LEN;
+    BLAKE3_CHUNK_LEN = 1024;
+
+
     while(input_len >s 0){
-
-        res = chunk_state_len(self);
-
-        if(res == 1024){
+        aux64 = chunk_state_len(self);
+        
+        if(aux64 == BLAKE3_CHUNK_LEN){
             counter, block_len, flags, block_words, input_chaining_value = chunk_state_output(self);
-            chunk_cv = output_chaining_value(counter, block_len, flags, block_words, input_chaining_value);
+            chunck_cv = output_chaining_value(counter, block_len, flags, block_words, input_chaining_value);
+        
+            total_chunks = (u64)[self + 8 * 4];
+            total_chunks += 1;
 
-            total_chunks = (u64)[self + 4 * 8];
-            total_chunks = total_chunks + 1;
-
-            hasher_add_chunk_cv(self, chunk_cv, total_chunks);
-            
+            hasher_add_chunk_cv(self, chunck_cv, total_chunks);
             chunk_state_init_update(self, total_chunks);
         }
         
-        want = 1024;
-        res = chunk_state_len(self);
-        want = want - res;
-        
+        aux64 = BLAKE3_CHUNK_LEN;
+        want = chunk_state_len(self);
+        want = aux64 - want;
         take = want;
 
-        if(want >s input_len){
+        if(input_len <s want){
             take = input_len;
         }
-        
-        chunk_state_update(self, input, take, input_u8);
-        input_u8 = input_u8 + take;
-        input_len = input_len - take;
 
+        chunk_state_update(self, input, take, input_u8);
+        input_u8 += take;
+        input_len -= take;
     }
 
 }
@@ -871,7 +853,6 @@ export fn blake3_hasher_init_keyed(reg u64 self, reg u64 key){
     for i = 0 to 32{
         key_aux[i] = (u8)[key + i];
     }
-
 
     key_words = words_from_little_endian_bytes_init(key_aux);
     hasher_init_internal(self, key_words, keyed_hash);
