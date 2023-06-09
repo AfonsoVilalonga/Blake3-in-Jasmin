@@ -727,77 +727,15 @@ export fn blake3_hasher_update(reg u64 self, reg u64 input, reg u64 input_len){
 
 
 /*
-    FUNCTIONS FOR THE blake3_hasher_init and blake3_hasher_init_keyed
-    EXPORT FUNCTION blake3_hasher_init and blake3_hasher_init_keyed
+    FUNCTIONS FOR THE blake3_hasher_init, 
+        blake3_hasher_init_keyed and blake3_hasher_init_derive_key
+    EXPORT FUNCTION blake3_hasher_init,
+         blake3_hasher_init_keyed and blake3_hasher_init_derive_key
 */
 
 
 
 
-
-
-/*
-    COMPLETE
-*/
-inline fn chunk_state_init_key(reg u64 self, stack u32[8] key_words, reg u64 chunk_counter, reg u32 flags){
-    inline int i;
-    for i = 0 to 8{
-        (u32)[self + i * 4] = key_words[i];
-    }   
-
-    (u64)[self + 8 * 4] = chunk_counter;
-    
-    for i = 0 to 64{
-        (u8)[self + 8 * 5 + i] = 0;
-    }
-    
-    (u8)[self + 8 * 5 + 64] = 0;
-    (u8)[self + 8 * 5 + 65] = 0;
-    (u32)[self + 112 - 4] = flags;
-}
-
-
-
-/*
-    COMPLETE
-*/
-inline fn hasher_init_internal(reg u64 self, stack u32[8] key_words, reg u32 flags){
-    reg u64 chunck_counter;
-    chunck_counter = 0;
-
-    chunk_state_init_key(self, key_words, chunck_counter, flags);
-
-    inline int i;
-    for i = 0 to 8{
-        (u32)[self + 112 + 4 * i] = key_words[i];
-    }
-
-    (u8)[self + 112 + 4 * 8 + (8 * 54) * 4] = 0;
-    (u32)[self + 1880 - 4] = flags;
-
-}
-
-
-
-/*
-    COMPLETE
-*/
-export fn blake3_hasher_init(reg u64 self){
-    reg u32 flags;
-    flags = 0;
-
-    stack u32[8] IV; 
-    IV[0] = 0x6A09E667;
-    IV[1] = 0xBB67AE85;
-    IV[2] = 0x3C6EF372;
-    IV[3] = 0xA54FF53A;
-    IV[4] = 0x510E527F;
-    IV[5] = 0x9B05688C;
-    IV[6] = 0x1F83D9AB;
-    IV[7] = 0x5BE0CD19;
-
-    hasher_init_internal(self, IV, flags);
-}
 
 
 /*
@@ -840,11 +778,73 @@ inline fn words_from_little_endian_bytes_init(stack u8[32] key) -> stack u32[8]{
 /*
     COMPLETE
 */
+inline fn chunk_state_init_key(reg u64 self, stack u32[8] key_words, reg u64 chunk_counter, stack u32 flags){
+    inline int i;
+    for i = 0 to 8{
+        (u32)[self + i * 4] = key_words[i];
+    }   
+
+    (u64)[self + 8 * 4] = chunk_counter;
+    
+    for i = 0 to 64{
+        (u8)[self + 8 * 5 + i] = 0;
+    }
+    
+    (u8)[self + 8 * 5 + 64] = 0;
+    (u8)[self + 8 * 5 + 65] = 0;
+    (u32)[self + 112 - 4] = flags;
+}
+
+
+/*
+    COMPLETE
+*/
+inline fn hasher_init_internal(reg u64 self, stack u32[8] key_words, stack u32 flags){
+    reg u64 chunck_counter;
+    chunck_counter = 0;
+
+    chunk_state_init_key(self, key_words, chunck_counter, flags);
+
+    inline int i;
+    for i = 0 to 8{
+        (u32)[self + 112 + 4 * i] = key_words[i];
+    }
+
+    (u8)[self + 112 + 4 * 8 + (8 * 54) * 4] = 0;
+    (u32)[self + 1880 - 4] = flags;
+
+}
+
+
+/*
+    COMPLETE
+*/
+export fn blake3_hasher_init(reg u64 self){
+    stack u32 flags;
+    flags = 0;
+
+    stack u32[8] IV; 
+    IV[0] = 0x6A09E667;
+    IV[1] = 0xBB67AE85;
+    IV[2] = 0x3C6EF372;
+    IV[3] = 0xA54FF53A;
+    IV[4] = 0x510E527F;
+    IV[5] = 0x9B05688C;
+    IV[6] = 0x1F83D9AB;
+    IV[7] = 0x5BE0CD19;
+
+    hasher_init_internal(self, IV, flags);
+}
+
+
+/*
+    COMPLETE
+*/
 export fn blake3_hasher_init_keyed(reg u64 self, reg u64 key){
     stack u8[32] key_aux;
     stack u32[8] key_words;
     
-    reg u32 keyed_hash;
+    stack u32 keyed_hash;
     
     keyed_hash = 1;
     keyed_hash = keyed_hash << 4;
@@ -857,4 +857,179 @@ export fn blake3_hasher_init_keyed(reg u64 self, reg u64 key){
     key_words = words_from_little_endian_bytes_init(key_aux);
     hasher_init_internal(self, key_words, keyed_hash);
 }
+
+
+/* 
+    COMPLETE
+*/
+inline fn blake3_hasher_update_inline(reg u64 self, reg u64 input, stack u64 input_len){
+    stack u32[16] block_words;
+    stack u32[8] input_chaining_value;
+    stack u32[8] chunck_cv;
+    
+    reg u64 counter, total_chunks, take, want, aux64;
+    reg u32 block_len, flags;
+    
+    stack u64 input_u8;
+    input_u8 = 0;
+
+    stack u64 BLAKE3_CHUNK_LEN;
+    BLAKE3_CHUNK_LEN = 1024;
+
+
+    while(input_len >s 0){
+        aux64 = chunk_state_len(self);
+        
+        if(aux64 == BLAKE3_CHUNK_LEN){
+            counter, block_len, flags, block_words, input_chaining_value = chunk_state_output(self);
+            chunck_cv = output_chaining_value(counter, block_len, flags, block_words, input_chaining_value);
+        
+            total_chunks = (u64)[self + 8 * 4];
+            total_chunks += 1;
+
+            hasher_add_chunk_cv(self, chunck_cv, total_chunks);
+            chunk_state_init_update(self, total_chunks);
+        }
+        
+        aux64 = BLAKE3_CHUNK_LEN;
+        want = chunk_state_len(self);
+        want = aux64 - want;
+        take = want;
+
+        if(input_len <s want){
+            take = input_len;
+        }
+
+        chunk_state_update(self, input, take, input_u8);
+        input_u8 += take;
+        input_len -= take;
+    }
+
+}
+
+
+/*
+    COMPLETE
+*/
+inline fn output_root_bytes_inline(reg u64 counter, reg u32 block_len flags, stack u32[16] block_words, stack u32[8] input_chaining_value, 
+                                        stack u64 out_s) -> stack u8[32]{
+    reg u32 aux, aux2, a, b;
+    stack u32[16] words;
+    reg u64 output_block_counter;
+    output_block_counter = 0;
+
+    aux2 = 1; 
+    aux2 = aux2 << 3;
+    
+    inline int word;
+    inline int byte;
+    reg u64 index;
+    index = 0;
+
+    stack u8[32] context_key;
+
+    reg u64 out_size;
+    out_size = out_s;
+
+    while(out_size >s 0){
+        aux = flags;
+        aux = aux | aux2;
+        words = compress(input_chaining_value, block_words, output_block_counter, block_len, aux);
+
+        
+        for word = 0 to 16{
+            for byte = 0 to 4{
+                
+                if (out_size >s 0) {
+                    a = words[word];
+                    b = 8;
+                    b = b * byte;
+                    a = a >> b;
+
+                    context_key[(int) index] = a;
+                    
+                    index = index + 1;
+                }
+                out_size = out_size - 1;
+            }
+        }
+        
+        output_block_counter = output_block_counter + 1;
+    }
+
+    return context_key;
+}
+
+
+/*
+    COMPLETE
+*/
+inline fn blake3_hasher_finalize_inline(reg u64 self, stack u64 size) -> stack u8[32]{
+    reg u64 counter;
+    reg u32 block_len, flags;
+    reg u8 parent_nodes_remaining;
+    
+    stack u32[16] block_words;
+    stack u32[8] input_chaining_value;
+    stack u32[8] current_cv;
+    stack u8[32] context_key;
+
+    counter, block_len, flags, block_words, input_chaining_value = chunk_state_output(self);
+    parent_nodes_remaining = (u8)[self + 108 + 4 + (8*4) + (8*54)*4];
+    
+    while(parent_nodes_remaining > 0){
+        parent_nodes_remaining = parent_nodes_remaining - 1;
+        current_cv = output_chaining_value(counter, block_len, flags, block_words, input_chaining_value);
+        
+        input_chaining_value, block_words, counter, block_len, flags = parent_output(self, current_cv, parent_nodes_remaining);
+    }
+
+    context_key = output_root_bytes_inline(counter, block_len, flags, block_words, input_chaining_value, size);  
+    return context_key; 
+}
+
+
+/*
+    COMPLETE
+*/
+export fn blake3_hasher_init_derive_keya(reg u64 context_hasher, reg u64 self, reg u64 context, reg u64 context_len){
+    stack u8[32] context_key;
+    stack u32[8] context_key_words;
+    
+    stack u64 context_len_aux;
+    context_len_aux = context_len;
+
+    stack u32[8] IV; 
+    IV[0] = 0x6A09E667;
+    IV[1] = 0xBB67AE85;
+    IV[2] = 0x3C6EF372;
+    IV[3] = 0xA54FF53A;
+    IV[4] = 0x510E527F;
+    IV[5] = 0x9B05688C;
+    IV[6] = 0x1F83D9AB;
+    IV[7] = 0x5BE0CD19;
+
+    stack u32 DERIVE_KEY_CONTEXT, DERIVE_KEY_MATERIAL;
+    stack u64 BLAKE3_KEY_LEN;
+
+    DERIVE_KEY_MATERIAL = 1; 
+    DERIVE_KEY_MATERIAL = DERIVE_KEY_MATERIAL << 6;
+    DERIVE_KEY_CONTEXT = 1;
+    DERIVE_KEY_CONTEXT = DERIVE_KEY_CONTEXT << 5;
+    BLAKE3_KEY_LEN = 32;
+
+    hasher_init_internal(context_hasher, IV, DERIVE_KEY_CONTEXT);
+    blake3_hasher_update_inline(context_hasher, context, context_len_aux);
+    context_key = blake3_hasher_finalize_inline(context_hasher, BLAKE3_KEY_LEN);
+
+    context_key_words = words_from_little_endian_bytes_init(context_key);
+    
+    hasher_init_internal(self, context_key_words, DERIVE_KEY_MATERIAL);
+
+}
+
+
+
+
+
 
