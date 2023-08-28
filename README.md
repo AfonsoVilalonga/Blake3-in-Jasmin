@@ -1,6 +1,6 @@
 # Blake3-Jasmin
 
-An implementation of the Blake3 hashing algorithm in Jasmin[[1]](#1).
+An implementation of the Blake3 hashing algorithm in Jasmin [[1]](#1).
 
 ## References
 <a id="1">[1]</a> 
