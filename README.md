@@ -1,4 +1,4 @@
-# Blake3-Jasmin
+# Overview
 
 An implementation of the Blake3 hashing algorithm in Jasmin [[1]](#1).
 
