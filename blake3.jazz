@@ -1,7 +1,6 @@
 /*
     FUNCTIONS FOR THE blake3_hasher_finalize
     EXPORT FUNCTION blake3_hasher_finalize
-    FUNCIONA
 */
 
 
@@ -479,7 +478,6 @@ export fn blake3_hasher_finalize(reg u64 self, reg u64 out, reg u64 size){
 /*
     FUNCTIONS FOR THE blake3_hasher_update
     EXPORT FUNCTION blake3_hasher_update
-    NAO FUNCIONA REVER
 */
 
 
